@@ -1,0 +1,61 @@
+# XcodeGen spec — run `xcodegen generate` to produce Earbar.xcodeproj (not
+# committed). The project exists for signing and distribution: App Store
+# archives use the AppStore configuration (sandboxed, APPSTORE flag), Developer
+# ID archives use Release. build.sh stays the quick unsigned developer build.
+name: Earbar
+options:
+  bundleIdPrefix: io.github.diovaniomota
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
+targets:
+  Earbar:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+        excludes:
+          - Resources/Info.plist
+          # The loose .icns is for build.sh; Xcode compiles the asset catalog.
+          - Resources/AppIcon.icns
+    dependencies:
+      - sdk: IOBluetooth.framework
+      - sdk: CoreBluetooth.framework
+      - sdk: ServiceManagement.framework
+    settings:
+      base:
+        PRODUCT_NAME: Earbar
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.diovaniomota.earbar
+        INFOPLIST_FILE: Sources/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: false
+        SWIFT_VERSION: "5.9"
+        ENABLE_HARDENED_RUNTIME: true
+        CODE_SIGN_STYLE: Automatic
+        # To sign with your own Apple Developer account, set DEVELOPMENT_TEAM
+        # here to your team ID (or pick the team under Signing & Capabilities).
+        CODE_SIGN_ENTITLEMENTS: Signing/Earbar-Direct.entitlements
+        SWIFT_STRICT_CONCURRENCY: minimal
+      configs:
+        AppStore:
+          CODE_SIGN_ENTITLEMENTS: Signing/Earbar-AppStore.entitlements
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
+schemes:
+  Earbar:
+    build:
+      targets:
+        Earbar: all
+    run:
+      config: Debug
+    archive:
+      config: AppStore
+  Earbar (Developer ID):
+    build:
+      targets:
+        Earbar: all
+    archive:
+      config: Release

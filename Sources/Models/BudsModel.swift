@@ -1,0 +1,195 @@
+import Foundation
+
+enum BudsModel: String, CaseIterable, Identifiable, Sendable {
+    case buds = "Galaxy Buds"
+    case budsPlus = "Galaxy Buds+"
+    case budsLive = "Galaxy Buds Live"
+    case budsPro = "Galaxy Buds Pro"
+    case buds2 = "Galaxy Buds2"
+    case buds2Pro = "Galaxy Buds2 Pro"
+    case budsFe = "Galaxy Buds FE"
+    case budsCore = "Galaxy Buds Core"
+    case buds3 = "Galaxy Buds3"
+    case buds3Pro = "Galaxy Buds3 Pro"
+    case buds3Fe = "Galaxy Buds3 FE"
+    case buds4 = "Galaxy Buds4"
+    case buds4Pro = "Galaxy Buds4 Pro"
+
+    var id: String { rawValue }
+
+    /// Best-effort model inference from the Bluetooth advertised name (e.g.
+    /// "Galaxy Buds4 Pro (1A2B)"). More specific names are matched before their
+    /// prefixes so "Buds4 Pro" wins over "Buds4", and "Pro/FE" win over base.
+    /// Returns nil when the name doesn't look like any known model.
+    static func detect(from name: String) -> BudsModel? {
+        let normalized = name.lowercased().replacingOccurrences(of: " ", with: "")
+        // Ordered most-specific first.
+        let table: [(needle: String, model: BudsModel)] = [
+            ("buds4pro", .buds4Pro),
+            ("buds4", .buds4),
+            ("buds3fe", .buds3Fe),
+            ("buds3pro", .buds3Pro),
+            ("buds3", .buds3),
+            ("buds2pro", .buds2Pro),
+            ("buds2", .buds2),
+            ("budspro", .budsPro),
+            ("budslive", .budsLive),
+            ("budsfe", .budsFe),
+            ("budscore", .budsCore),
+            ("buds+", .budsPlus),
+            ("budsplus", .budsPlus),
+            ("buds", .buds),
+        ]
+        for entry in table where normalized.contains(entry.needle) {
+            return entry.model
+        }
+        return nil
+    }
+
+    /// The four SPP service UUIDs Samsung earbuds are known to expose their
+    /// control channel under. `alternative` is the "alt mode" record some
+    /// firmware advertises instead of the usual one.
+    enum ServiceUUID {
+        static let legacy = "00001102-0000-1000-8000-00805f9b34fd"
+        static let standard = "00001101-0000-1000-8000-00805f9b34fb"
+        static let modern = "2e73a4ad-332d-41fc-90e2-16bef06523f2"
+        static let alternative = "f8620674-a1ed-41ab-a8b9-de9ad655729d"
+    }
+
+    var serviceUUID: String {
+        switch self {
+        case .buds:
+            return ServiceUUID.legacy
+        case .budsPlus, .budsLive, .budsPro:
+            return ServiceUUID.standard
+        default:
+            return ServiceUUID.modern
+        }
+    }
+
+    /// Every SPP UUID worth probing, the model's expected one first. Firmware
+    /// revisions and Samsung's alternative mode publish the control channel
+    /// under a different record on some units, so a single-UUID lookup leaves
+    /// those devices stuck on "Connecting…" forever. Probing the rest costs
+    /// nothing — they're local lookups against SDP records already fetched.
+    var serviceUUIDCandidates: [String] {
+        let fallbacks = [
+            ServiceUUID.modern, ServiceUUID.standard,
+            ServiceUUID.alternative, ServiceUUID.legacy,
+        ]
+        var candidates = [serviceUUID]
+        for uuid in fallbacks where !candidates.contains(uuid) {
+            candidates.append(uuid)
+        }
+        return candidates
+    }
+
+    var usesLegacyProtocol: Bool {
+        self == .buds
+    }
+
+    /// Whether the model takes the Off / Ambient / ANC switch (NOISE_CONTROLS).
+    /// Buds2 and Buds FE have both ANC and ambient sound on the same message as
+    /// the Pro models; Buds Live is left out because its ANC is a separate
+    /// on/off message with no ambient mode.
+    var supportsANC: Bool {
+        switch self {
+        case .budsPro, .buds2, .buds2Pro, .budsFe, .buds3, .buds3Pro, .buds3Fe, .buds4, .buds4Pro:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Whether ANC has an adjustable strength. Buds2 and Buds FE only switch it
+    /// on or off.
+    var supportsAncStrength: Bool {
+        switch self {
+        case .buds2, .budsFe:
+            return false
+        default:
+            return supportsANC
+        }
+    }
+
+    var supportsCaseBattery: Bool {
+        self != .buds
+    }
+
+    var supportsAdaptiveANC: Bool {
+        switch self {
+        case .buds3Pro, .buds4Pro:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// The listen modes to offer. Adaptive is a Buds3/4 Pro feature; the rest
+    /// get the three-way Off / Ambient / ANC.
+    var listenModes: [NoiseControlMode] {
+        supportsAdaptiveANC ? [.off, .ambient, .adaptive, .anc] : [.off, .ambient, .anc]
+    }
+
+    /// Number of ANC strength steps the model exposes. Buds3/4 Pro answer the
+    /// same five steps the Galaxy Wearable app shows — verified against Buds4
+    /// Pro, which echoes every value back in its extended status. Everything
+    /// else is treated as the two-step Low/High the upstream protocol assumes.
+    var ancLevelCount: Int {
+        switch self {
+        case .buds3Pro, .buds4Pro: 5
+        default: 2
+        }
+    }
+
+    /// Whether the model can auto-switch to ambient sound when you talk.
+    var supportsDetectConversations: Bool {
+        switch self {
+        case .budsPro, .buds2Pro, .buds3Pro, .buds4Pro:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Whether the model supports Samsung Seamless Connection (a.k.a. Bluetooth
+    /// multipoint between two host devices). Per the upstream protocol spec this
+    /// is available on every model from Buds Live onward; the legacy 1st-gen
+    /// Buds and Buds+ predate the feature.
+    var supportsSeamlessConnection: Bool {
+        switch self {
+        case .buds, .budsPlus:
+            return false
+        default:
+            return true
+        }
+    }
+
+    /// Whether the model supports the per-band custom equalizer (9 signed gain
+    /// bands, -10..+10). Only the newest models expose the CUSTOM_EQUALIZE SPP
+    /// messages; older models offer presets only.
+    var supportsCustomEqualizer: Bool {
+        switch self {
+        case .buds3Pro, .buds3Fe, .buds4, .buds4Pro:
+            return true
+        default:
+            return false
+        }
+    }
+
+    var maxAmbientVolume: Int {
+        switch self {
+        case .buds:
+            return 5
+        default:
+            return 4
+        }
+    }
+
+    /// SF Symbol for the model's icon. "airpodspro" reads cleanly as an earbud
+    /// and exists on all supported macOS versions; per-model distinction comes
+    /// from the accent colour (`tint`) rather than the glyph.
+    var iconName: String {
+        "airpodspro"
+    }
+}
