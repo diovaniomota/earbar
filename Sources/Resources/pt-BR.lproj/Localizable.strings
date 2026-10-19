@@ -1,4 +1,4 @@
-"Welcome to Earbar" = "Bem-vindo ao Earbar";
+"Welcome to Earbar" = "Bem-vindo ao Galaxy Buds";
 "Connect your Samsung Galaxy Buds\nfor battery info, ANC controls, and more." = "Conecte seus Samsung Galaxy Buds\npara ver a bateria, controle de ANC e mais.";
 "Get Started" = "Começar";
 "Select Your Model" = "Selecione seu modelo";
@@ -43,7 +43,7 @@
 "Find Buds" = "Encontrar fones";
 "Stop Find" = "Parar busca";
 "Couldn't find the Galaxy Buds control service. Try removing and re-pairing the earbuds in System Settings → Bluetooth." = "Serviço de controle dos Galaxy Buds não encontrado. Tente remover e reemparelhar os fones em Ajustes do Sistema → Bluetooth.";
-"Bluetooth permission denied. Allow Earbar under System Settings → Privacy & Security → Bluetooth." = "Permissão de Bluetooth negada. Permita o Earbar em Ajustes do Sistema → Privacidade e Segurança → Bluetooth.";
+"Bluetooth permission denied. Allow Earbar under System Settings → Privacy & Security → Bluetooth." = "Permissão de Bluetooth negada. Permita o Galaxy Buds em Ajustes do Sistema → Privacidade e Segurança → Bluetooth.";
 "Bluetooth is off. Please turn it on." = "O Bluetooth está desligado. Ative-o.";
 "Listen mode" = "Modo de audição";
 "Play sound" = "Reproduzir som";
@@ -101,7 +101,7 @@
 "Adjust fit" = "Ajustar";
 "Test failed" = "Teste falhou";
 "Quit" = "Sair";
-"Quit Earbar" = "Sair do Earbar";
+"Quit Earbar" = "Sair do Galaxy Buds";
 
 "To phone" = "Ao celular";
 "Audio on phone" = "Áudio no celular";
